@@ -73,7 +73,7 @@ public class maintexas {
         // Showdown
         esperarEnter(scanner, "Presione Enter para ver el resultado...");
         juego.determinarGanador();
-        System.out.println("\n=== Resultado Final ===");
+        System.out.println("\n==== Resultado Final ====");
         mostrarResultadosFinales(juego);
     }
 

@@ -101,7 +101,7 @@ public class FiveCardDraw extends JuegoPoker {
         }
     }
 
-    private List<Jugador> desempatar(List<Jugador> jugadores) {
+    public List<Jugador> desempatar(List<Jugador> jugadores) {
         if (jugadores.size() == 1) return jugadores;
 
         // 1. Convertir manos a listas de valores numéricos ordenados (descendente)

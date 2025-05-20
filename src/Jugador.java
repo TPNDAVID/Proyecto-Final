@@ -6,7 +6,7 @@ public class Jugador {
     private List<Carta> mano = new ArrayList<>();
     private int fichas = 1000;  // Fichas iniciales
     private boolean retirado = false;
-
+    private int apuestaRonda;
     // Constructor
     public Jugador(String nombre) {
         this.nombre = nombre;
@@ -28,6 +28,11 @@ public class Jugador {
     public boolean estaRetirado() {
         return retirado;
     }
+
+    public int getApuestaRonda() {
+        return apuestaRonda;
+    }
+
 
     // --- Setters ---
     public void setNombre(String nombre) {
@@ -63,8 +68,26 @@ public class Jugador {
         }
     }
 
+    public void setApuestaRonda(int apuestaRonda) {
+        this.apuestaRonda = apuestaRonda;
+    }
+
     @Override
     public String toString() {
         return nombre + " (Fichas: " + fichas + ")";
     }
+
+    public void igualarApuesta(int apuesta) {
+        int diferencia = apuesta - this.apuestaRonda;
+        if (diferencia > 0 && diferencia <= fichas) {
+            apostar(diferencia);
+            apuestaRonda = apuesta;
+        }
+    }
+
+    public void retirarse() {
+        retirado = true;
+    }
 }
+
+

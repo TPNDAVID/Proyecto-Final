@@ -89,5 +89,3 @@ public class Jugador {
         retirado = true;
     }
 }
-
-

@@ -14,7 +14,33 @@ public class EvaluadorMano {
     public static final int PAR = 2;
     public static final int CARTA_ALTA = 1;
 
+    private static final Map<String, Integer> VALOR_NUMERICO = Map.ofEntries(
+            Map.entry("2", 2), Map.entry("3", 3), Map.entry("4", 4),
+            Map.entry("5", 5), Map.entry("6", 6), Map.entry("7", 7),
+            Map.entry("8", 8), Map.entry("9", 9), Map.entry("10", 10),
+            Map.entry("Jota", 11), Map.entry("Reina", 12), Map.entry("Rey", 13),
+            Map.entry("As", 14)
+    );
+
+    // Versión optimizada para Texas Hold'em (7 cartas)
+    public static int evaluarMejorMano(List<Carta> manoJugador, List<Carta> cartasComunitarias) {
+        List<Carta> todasLasCartas = new ArrayList<>();
+        todasLasCartas.addAll(manoJugador);
+        todasLasCartas.addAll(cartasComunitarias);
+
+        // Generar todas las combinaciones posibles de 5 cartas de las 7 disponibles
+        List<List<Carta>> combinaciones = generarCombinaciones(todasLasCartas, 5);
+
+        return combinaciones.stream()
+                .mapToInt(EvaluadorMano::evaluar)
+                .max()
+                .orElse(CARTA_ALTA);
+    }
+
+    // Evalúa una mano específica de 5 cartas
     public static int evaluar(List<Carta> mano) {
+        if (mano.size() != 5) throw new IllegalArgumentException("Se requieren exactamente 5 cartas");
+
         if (esEscaleraReal(mano)) return ESCALERA_REAL;
         if (esEscaleraColor(mano)) return ESCALERA_COLOR;
         if (esPoquer(mano)) return POQUER;
@@ -27,17 +53,13 @@ public class EvaluadorMano {
         return CARTA_ALTA;
     }
 
-    // --- Métodos de validación ---
+    // --- Métodos de validación optimizados ---
     private static boolean esEscaleraReal(List<Carta> mano) {
-        Set<String> valoresReales = Set.of("As", "Rey", "Reina", "Jota", "10");
+        Set<String> valoresReales = Set.of("10", "Jota", "Reina", "Rey", "As");
         String palo = mano.get(0).getPalo();
 
-        return mano.stream()
-                .allMatch(carta -> carta.getPalo().equals(palo)) &&
-                mano.stream()
-                        .map(Carta::getValor)
-                        .collect(Collectors.toSet())
-                        .equals(valoresReales);
+        return mano.stream().allMatch(c -> c.getPalo().equals(palo)) &&
+                mano.stream().map(Carta::getValor).collect(Collectors.toSet()).equals(valoresReales);
     }
 
     private static boolean esEscaleraColor(List<Carta> mano) {
@@ -45,8 +67,7 @@ public class EvaluadorMano {
     }
 
     private static boolean esPoquer(List<Carta> mano) {
-        Map<String, Long> conteo = contarValores(mano);
-        return conteo.containsValue(4L);
+        return contarValores(mano).values().stream().anyMatch(count -> count == 4);
     }
 
     private static boolean esFullHouse(List<Carta> mano) {
@@ -55,63 +76,77 @@ public class EvaluadorMano {
     }
 
     private static boolean esColor(List<Carta> mano) {
-        return mano.stream()
-                .map(Carta::getPalo)
-                .distinct()
-                .count() == 1;
+        return mano.stream().map(Carta::getPalo).distinct().count() == 1;
     }
 
     private static boolean esEscalera(List<Carta> mano) {
         List<Integer> valores = convertirValoresANumeros(mano);
-        if (valores.size() != 5) return false;
+        if (valores.size() < 5) return false;
 
-        Collections.sort(valores);
+        Set<Integer> valoresUnicos = new TreeSet<>(valores); // Ordena y elimina duplicados
 
-        // Escalera normal (2-3-4-5-6)
-        boolean normal = valores.get(4) - valores.get(0) == 4;
+        // Caso especial: Escalera baja (A-2-3-4-5)
+        if (valoresUnicos.containsAll(Set.of(14, 2, 3, 4, 5))) {
+            return true;
+        }
 
-        // Escalera baja (A-2-3-4-5)
-        boolean baja = valores.equals(List.of(2, 3, 4, 5, 14));
+        // Convertir a lista ordenada
+        List<Integer> listaOrdenada = new ArrayList<>(valoresUnicos);
 
-        return normal || baja;
+        // Verificar escaleras normales (5 cartas consecutivas)
+        for (int i = 0; i <= listaOrdenada.size() - 5; i++) {
+            int primero = listaOrdenada.get(i);
+            int ultimo = listaOrdenada.get(i + 4);
+            if (ultimo - primero == 4) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static boolean esTercia(List<Carta> mano) {
-        return contarValores(mano).containsValue(3L);
+        return contarValores(mano).values().stream().anyMatch(count -> count == 3);
     }
 
     private static boolean esDoblePar(List<Carta> mano) {
-        return contarValores(mano).values().stream()
-                .filter(count -> count == 2L)
-                .count() == 2;
+        return contarValores(mano).values().stream().filter(count -> count == 2).count() == 2;
     }
 
     private static boolean esPar(List<Carta> mano) {
-        return contarValores(mano).containsValue(2L);
+        return contarValores(mano).values().stream().anyMatch(count -> count == 2);
     }
 
     // --- Métodos auxiliares ---
     private static Map<String, Long> contarValores(List<Carta> mano) {
-        return mano.stream()
-                .collect(Collectors.groupingBy(
-                        Carta::getValor,
-                        Collectors.counting()
-                ));
+        return mano.stream().collect(Collectors.groupingBy(Carta::getValor, Collectors.counting()));
     }
 
-    static List<Integer> convertirValoresANumeros(List<Carta> mano) {
-        Map<String, Integer> valorANumero = Map.ofEntries(
-                Map.entry("2", 2), Map.entry("3", 3), Map.entry("4", 4),
-                Map.entry("5", 5), Map.entry("6", 6), Map.entry("7", 7),
-                Map.entry("8", 8), Map.entry("9", 9), Map.entry("10", 10),
-                Map.entry("Jota", 11), Map.entry("Reina", 12), Map.entry("Rey", 13),
-                Map.entry("As", 14)
-        );
-
+    public static List<Integer> convertirValoresANumeros(List<Carta> mano) {
         return mano.stream()
-                .map(carta -> valorANumero.getOrDefault(carta.getValor(), 0))
-                .filter(num -> num > 0)
+                .map(carta -> VALOR_NUMERICO.get(carta.getValor()))
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
+    }
+
+    // Genera todas las combinaciones posibles de k cartas
+    private static List<List<Carta>> generarCombinaciones(List<Carta> cartas, int k) {
+        List<List<Carta>> result = new ArrayList<>();
+        combinacionesHelper(cartas, k, 0, new ArrayList<>(), result);
+        return result;
+    }
+
+    private static void combinacionesHelper(List<Carta> cartas, int k, int start,
+                                            List<Carta> current, List<List<Carta>> result) {
+        if (current.size() == k) {
+            result.add(new ArrayList<>(current));
+            return;
+        }
+        for (int i = start; i < cartas.size(); i++) {
+            current.add(cartas.get(i));
+            combinacionesHelper(cartas, k, i + 1, current, result);
+            current.remove(current.size() - 1);
+        }
     }
 
     public static String nombreMano(int puntaje) {
@@ -128,4 +163,61 @@ public class EvaluadorMano {
             default: return "Carta Alta";
         }
     }
+    public static int evaluarMejorMano(List<Carta> cartas) {
+        if (cartas.size() < 5) {
+            throw new IllegalArgumentException("Se necesitan al menos 5 cartas para evaluar");
+        }
+
+        // Si tenemos exactamente 5 cartas, evaluar directamente
+        if (cartas.size() == 5) {
+            return evaluar(cartas);
+        }
+
+        // Generar todas las combinaciones posibles de 5 cartas
+        List<List<Carta>> combinaciones = generarCombinaciones(cartas, 5);
+
+        // Encontrar la mejor puntuación entre todas las combinaciones
+        return combinaciones.stream()
+                .mapToInt(EvaluadorMano::evaluar)
+                .max()
+                .orElse(CARTA_ALTA);
+    }
+    public static List<Carta> obtenerMejorCombinacion(List<Carta> cartas) {
+        if (cartas.size() < 5) throw new IllegalArgumentException("Se necesitan al menos 5 cartas");
+
+        List<List<Carta>> combinaciones = generarCombinaciones(cartas, 5);
+        List<Carta> mejorCombinacion = combinaciones.get(0);
+        int maxPuntuacion = evaluar(mejorCombinacion);
+
+        for (List<Carta> combo : combinaciones) {
+            int puntuacion = evaluar(combo);
+            if (puntuacion > maxPuntuacion ||
+                    (puntuacion == maxPuntuacion && compararCombinaciones(combo, mejorCombinacion) > 0)) {
+                mejorCombinacion = combo;
+                maxPuntuacion = puntuacion;
+            }
+        }
+        return mejorCombinacion;
+    }
+
+    private static int compararCombinaciones(List<Carta> combo1, List<Carta> combo2) {
+        // Usar convertirValoresANumeros() y ordenar de mayor a menor
+        List<Integer> valores1 = convertirValoresANumeros(combo1).stream()
+                .sorted(Comparator.reverseOrder())
+                .collect(Collectors.toList());
+
+        List<Integer> valores2 = convertirValoresANumeros(combo2).stream()
+                .sorted(Comparator.reverseOrder())
+                .collect(Collectors.toList());
+
+        // Comparar carta por carta
+        for (int i = 0; i < Math.min(valores1.size(), valores2.size()); i++) {
+            if (!valores1.get(i).equals(valores2.get(i))) {
+                return valores1.get(i) - valores2.get(i);
+            }
+        }
+        return 0;
+    }
+
+
 }

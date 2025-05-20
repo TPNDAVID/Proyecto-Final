@@ -23,12 +23,12 @@ public class Baraja {
 
     public Carta sacarCarta() {
         if (cartas.isEmpty()) {
-            reiniciarBaraja();
+            reiniciar();
         }
         return cartas.remove(0);
     }
 
-    private void reiniciarBaraja() {
+    public void reiniciar() {
         cartas.addAll(descartes);
         descartes.clear();
         barajar();
